@@ -58,6 +58,7 @@ export const TeleagentAuthPlugin = async (_input, options) => {
       const gwBody = openaiToGateway(body)
       const model = body.model
       const wantStream = body.stream === true
+      if (gwBody.max_tokens == null && gwBody.max_completion_tokens == null) gwBody.max_tokens = Number(opts.maxOutputTokens) > 0 ? Number(opts.maxOutputTokens) : 131072
       gwBody.stream = wantStream
       if (wantStream) gwBody.stream_options = { include_usage: true }
 
@@ -269,7 +270,7 @@ export const TeleagentAuthPlugin = async (_input, options) => {
       id: PROVIDER,
       async models(provider, { auth } = {}) {
         if (auth?.type !== 'api' || !auth.key) return provider.models
-        const context = Number(opts.contextWindow) > 0 ? Number(opts.contextWindow) : 131072
+        const context = Number(opts.contextWindow) > 0 ? Number(opts.contextWindow) : 1048576
         const output = Number(opts.maxOutputTokens) > 0 ? Number(opts.maxOutputTokens) : 131072
         const out = {}
         for (const id of MODELS) out[id] = { limit: { context, output } }

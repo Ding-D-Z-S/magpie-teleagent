@@ -19,7 +19,7 @@ magpie plugin login teleagent
 | 协议 | magpie 以 `@ai-sdk/openai-compatible` 发请求，插件翻译成网关格式并签名 |
 | 流式 | 网关 SSE 原样透传（OpenAI `chat.completion.chunk`） |
 | 工具调用 | `tools` / `tool_choice` / `parallel_tool_calls` 等原样透传 |
-| 模型限制 | 每个模型声明 `limit: { context: 131072, output: 131072 }` |
+| 模型限制 | 每个模型声明 `limit: { context: 1048576, output: 131072 }` |
 | 积分 | `auth.usage` 钩子显示积分余额与各权益明细 |
 | 自动签到 | 每日登录积分（100 分/天）自动领取，6 小时节流、幂等 |
 
@@ -165,7 +165,7 @@ sig  = hex(HMAC_SHA256(sig1, m2))
 网关实测 `max_tokens` 允许范围 **`[1, 131072]`**，因此：
 
 ```js
-limit: { context: 131072, output: 131072 }
+limit: { context: 1048576, output: 131072 }
 ```
 
 可用 `magpie plugin options teleagent '{"contextWindow":131072,"maxOutputTokens":131072}'` 覆盖。
