@@ -17,7 +17,7 @@ import { buildHeaders } from './lib/signer.mjs'
 import { MODELS, openaiToGateway, gatewayToOpenai, extractError } from './lib/api.mjs'
 import {
   BASE, CHAT_PATH, defaultAccountFile, loadAccount, saveAccount,
-  loadAccountById, saveAccountById, migrateLegacyAccount, checkinStateFileFor,
+  loadAccountById, saveAccountById, migrateLegacyAccount, checkinStateFileFor, listAccountIds,
   fetchCredits, usageFromCredits,
 } from './lib/account.mjs'
 import { LOGIN_URL, PORTAL_URL, INSTRUCTIONS, extractToken } from './lib/web-login.mjs'
@@ -51,7 +51,8 @@ export const TeleagentAuthPlugin = async (_input, options) => {
       }
       // 每次真正发请求时顺带跑一次自动签到（内部 6 小时节流，失败不影响对话）
       if (opts.autoCheckIn !== false) {
-        try { await checkIn(acc, { stateFile: checkinStateFileFor(acc.accountId || acc.accountName) }) } catch {}
+        // 不等待，避免签到拖慢对话（内部有 6 小时节流）
+        checkIn(acc, { stateFile: checkinStateFileFor(acc.accountId || acc.accountName) }).catch(() => {})
       }
 
       const gwBody = openaiToGateway(body)
@@ -75,7 +76,7 @@ export const TeleagentAuthPlugin = async (_input, options) => {
 
       let up
       try {
-        up = await fetch(BASE + '/chat/completions', { method: 'POST', headers, body: payload, signal: init.signal })
+        up = await fetch(BASE + '/chat/completions', { method: 'POST', headers, body: payload, signal: init.signal || AbortSignal.timeout(600000) })
       } catch (e) {
         return jsonResponse({ error: { message: '连接 TeleAgent 网关失败: ' + String(e?.message ?? e).slice(0, 200), type: 'upstream_error' } }, 502)
       }
@@ -132,23 +133,46 @@ export const TeleagentAuthPlugin = async (_input, options) => {
 
   /** 按 magpie 给的 auth.key 找对应账号（多账号互不覆盖） */
   function resolveAccount(auth) {
-    if (!auth?.key) return null
-    const byId = loadAccountById(auth.key)
-    if (byId?.token) return byId
+    const raw = auth?.key != null ? String(auth.key) : ''
+    const candidates = []
+    if (raw) {
+      candidates.push(raw)
+      const noHash = raw.split('#')[0]
+      if (noHash && noHash !== raw) candidates.push(noHash)
+    }
+    for (const id of candidates) {
+      const a = loadAccountById(id)
+      if (a?.token) return a
+    }
+    // 兼容：按 metadata.account（账号名/手机号）匹配
+    const name = auth?.metadata?.account
+    if (name) {
+      for (const id of listAccountIds()) {
+        const a = loadAccountById(id)
+        if (a?.token && (a.accountName === name || a.phone === name || a.accountId === name)) return a
+      }
+    }
+    // 只有一个账号时直接用（老版本单账号场景）
+    const ids = listAccountIds()
+    if (ids.length === 1) {
+      const only = loadAccountById(ids[0])
+      if (only?.token) return only
+    }
     const legacy = loadAccount(accountFile)
-    if (legacy?.token && (!legacy.accountId || legacy.accountId === auth.key)) return legacy
+    if (legacy?.token && (!raw || legacy.accountId === raw || ids.length === 0)) return legacy
     return null
   }
 
   return {
     config: async (cfg) => {
       cfg.provider ??= {}
-      cfg.provider[PROVIDER] ??= {
+      cfg.provider[PROVIDER] = {
+        ...(cfg.provider[PROVIDER] || {}),
         name: 'TeleAgent',
         npm: '@ai-sdk/openai-compatible',
         api: BASE,
         icon: ICON,
-        models: {},
+        models: cfg.provider[PROVIDER]?.models || {},
       }
     },
 
