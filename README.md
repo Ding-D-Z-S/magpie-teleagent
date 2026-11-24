@@ -185,6 +185,64 @@ magpie-teleagent/
 
 MIT
 
+## 流式 usage（v0.3.2 → v0.3.5）
+
+TeleAgent 网关的 usage 有三个坑，插件逐个绕过了：
+
+1. **usage 塞在内容 chunk 里** —— 网关把 `usage` 和 `choices` 放在同一个 chunk，
+   而 OpenAI 规范要求 usage 单独一个 chunk（`choices: []`），magpie 按规范统计。
+   → `lib/stream-usage.mjs` 拆成「内容 chunk」+「usage chunk」。
+2. **部分模型默认不返回 usage** —— 实测 `chat-flagship` 有，`chat-pro`/`chat-lite` 没有，
+   必须带 `stream_options: {include_usage: true}` 才返回。
+   → 插件的流式请求固定带上这个参数。
+3. **模型间 usage 字段不一致** —— `chat-pro`/`chat-lite` 只给顶层 `reasoning_tokens`，
+   没有 `completion_tokens_details` / `prompt_tokens_details`。
+   → `normalizeUsage()` 统一补齐成 OpenAI 标准结构。
+
+效果：magpie 面板能正确显示 输入/输出 token 与 输出速度（tok/s）。
+
+> 缓存读取/写入恒为 0：TeleAgent 上游不返回 `cached_tokens` / `cache_write_tokens`，
+> 插件只能补 0，不是统计错误。
+
+## Changelog
+
+| 版本 | 内容 |
+|---|---|
+| 0.1.0 | 初版：provider + 签名 + 协议转换 + 积分 usage |
+| 0.2.0 | 网页登录（粘贴 operationToken）+ 图标 |
+| 0.3.0 | 模型 limit（context/output 131072）+ 自动签到 |
+| 0.3.1 | 聊天请求也触发自动签到 |
+| 0.3.2 | 流式 usage 拆成独立 chunk |
+| 0.3.3 | 非流式 usage 字段归一 |
+| 0.3.4 | 流式 usage 字段归一 |
+| 0.3.5 | 流式请求带 `include_usage`，修复 chat-pro/chat-lite 无 usage |
+
+## 目录结构
+
+```
+magpie-teleagent/
+├─ index.mjs           插件主体（config / auth / provider 三段钩子）
+├─ lib/
+│  ├─ signer.mjs       网关签名
+│  ├─ api.mjs          OpenAI ⇄ 网关 协议转换
+│  ├─ account.mjs      账号文件、积分、usage 结构
+│  ├─ checkin.mjs      自动签到
+│  └─ web-login.mjs    网页登录辅助（链接、token 解析）
+├─ logo-mark.png       图标（magpie 会自动下载缓存）
+└─ package.json        插件清单（含 magpie 元数据）
+```
+
+## 已知限制
+
+- 凭据来自 TeleAgent 客户端；服务端若变更签名规则，需同步 `lib/signer.mjs`
+- token 约 90 天过期；网页登录 token 随门户会话过期，长期使用建议用客户端 token
+- 仅实现 OpenAI Chat Completions 路径（Anthropic / Responses 入参未接）
+- 与 TeleAgent 官方无关联；使用时请遵守其服务条款
+
+## License
+
+MIT
+
 ## 流式 usage（v0.3.2）
 
 TeleAgent 网关把 `usage` 放在最后一个带 `choices` 的 chunk 里，而 OpenAI 规范要求
