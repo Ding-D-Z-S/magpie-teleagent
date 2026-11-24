@@ -3,3 +3,4 @@ node_modules/
 account.json
 *.log
 .DS_Store
+.checkin.json
