@@ -279,7 +279,7 @@ export const TeleagentAuthPlugin = async (_input, options) => {
         const inP = Number(opts.inputPrice) > 0 ? Number(opts.inputPrice) : 5
         const outP = Number(opts.outputPrice) > 0 ? Number(opts.outputPrice) : 15
         const out = {}
-        for (const id of MODELS) out[id] = { limit: { context, output }, input_price: inP, output_price: outP, cache_price: 0 }
+        for (const id of MODELS) out[id] = { limit: { context, output }, priceRate: { input: inP, output: outP, cached: 0, unit: '¥/1M' } }
         return out
       },
     },
