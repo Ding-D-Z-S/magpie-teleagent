@@ -56,6 +56,7 @@ export const TeleagentAuthPlugin = async (_input, options) => {
       const model = body.model
       const wantStream = body.stream === true
       gwBody.stream = wantStream
+      if (wantStream) gwBody.stream_options = { include_usage: true }
 
       const payload = JSON.stringify(gwBody)
       const headers = buildHeaders({

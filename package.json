@@ -1,6 +1,6 @@
 {
   "name": "magpie-teleagent",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "magpie / OpenCode provider plugin: use your TeleAgent (星辰超级智能体) account as a provider",
   "type": "module",
   "main": "./index.mjs",
