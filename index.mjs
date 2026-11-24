@@ -21,7 +21,7 @@ import {
 } from './lib/account.mjs'
 import { LOGIN_URL, PORTAL_URL, INSTRUCTIONS, extractToken } from './lib/web-login.mjs'
 import { checkIn } from './lib/checkin.mjs'
-import { withUsageChunk } from './lib/stream-usage.mjs'
+import { withUsageChunk, normalizeUsage } from './lib/stream-usage.mjs'
 
 const PROVIDER = 'teleagent'
 const ICON = 'https://agent.teleai.com.cn/meter/teleagent/user/portal/assets/logo-mark-BHRWrah4.png'
@@ -96,7 +96,9 @@ export const TeleagentAuthPlugin = async (_input, options) => {
         const err = extractError(JSON.stringify(j), 502)
         return jsonResponse({ error: { message: String(err.message || '').slice(0, 400), type: 'upstream_error' } }, 502)
       }
-      return jsonResponse(gatewayToOpenai(j, model))
+      const out = gatewayToOpenai(j, model)
+      out.usage = normalizeUsage(out.usage)
+      return jsonResponse(out)
     }
   }
 
