@@ -104,6 +104,7 @@ export const TeleagentAuthPlugin = async (_input, options) => {
       }
       const out = gatewayToOpenai(j, model)
       out.usage = normalizeUsage(out.usage)
+      if (out.usage) out.credits = out.usage.credits
       return jsonResponse(out)
     }
   }
