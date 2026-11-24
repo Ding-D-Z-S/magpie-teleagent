@@ -184,3 +184,15 @@ magpie-teleagent/
 ## License
 
 MIT
+
+## 流式 usage（v0.3.2）
+
+TeleAgent 网关把 `usage` 放在最后一个带 `choices` 的 chunk 里，而 OpenAI 规范要求
+usage 单独一个 chunk（`choices: []`）——magpie 按规范统计，所以之前面板里
+token 数/速度/缓存都是空的。
+
+`lib/stream-usage.mjs` 会把流拆成「内容 chunk」+「usage chunk」，并补齐
+`prompt_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 }`。
+
+效果：magpie 面板能正确显示 输入/输出 token、输出速度、缓存读取/写入（TeleAgent 上游
+本身不返回缓存明细，所以缓存恒为 0）。

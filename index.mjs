@@ -21,6 +21,7 @@ import {
 } from './lib/account.mjs'
 import { LOGIN_URL, PORTAL_URL, INSTRUCTIONS, extractToken } from './lib/web-login.mjs'
 import { checkIn } from './lib/checkin.mjs'
+import { withUsageChunk } from './lib/stream-usage.mjs'
 
 const PROVIDER = 'teleagent'
 const ICON = 'https://agent.teleai.com.cn/meter/teleagent/user/portal/assets/logo-mark-BHRWrah4.png'
@@ -83,7 +84,7 @@ export const TeleagentAuthPlugin = async (_input, options) => {
       }
 
       if (wantStream) {
-        return new Response(up.body, {
+        return new Response(withUsageChunk(up.body, model), {
           status: 200,
           headers: { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache', connection: 'keep-alive' },
         })
