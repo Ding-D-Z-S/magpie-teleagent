@@ -30,8 +30,8 @@ const ICON = 'https://agent.teleai.com.cn/meter/teleagent/user/portal/assets/log
 /** 所有 TeleAgent 客户端共用的渠道密钥（从 app.asar 提取） */
 const DEFAULT_CHANNEL_KEY = 'sk-qvp4m6h9g20uM6PgYP7E'
 
-const jsonResponse = (obj, status = 200) =>
-  new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json' } })
+const jsonResponse = (obj, status = 200, headers = {}) =>
+  new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json', ...headers } })
 
 export const TeleagentAuthPlugin = async (_input, options) => {
   const opts = options && typeof options === 'object' ? options : {}
@@ -104,8 +104,9 @@ export const TeleagentAuthPlugin = async (_input, options) => {
       }
       const out = gatewayToOpenai(j, model)
       out.usage = normalizeUsage(out.usage)
+      const h = out.usage ? { 'x-credits': String(out.usage.credits) } : {}
       if (out.usage) out.credits = out.usage.credits
-      return jsonResponse(out)
+      return jsonResponse(out, 200, h)
     }
   }
 
