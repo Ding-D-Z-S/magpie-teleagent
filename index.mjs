@@ -22,7 +22,7 @@ import {
 } from './lib/account.mjs'
 import { LOGIN_URL, PORTAL_URL, INSTRUCTIONS, extractToken } from './lib/web-login.mjs'
 import { checkIn } from './lib/checkin.mjs'
-import { withUsageChunk, normalizeUsage } from './lib/stream-usage.mjs'
+import { withUsageChunk, normalizeUsage, setPointsRate } from './lib/stream-usage.mjs'
 
 const PROVIDER = 'teleagent'
 const ICON = 'https://agent.teleai.com.cn/meter/teleagent/user/portal/assets/logo-mark-BHRWrah4.png'
@@ -37,6 +37,7 @@ export const TeleagentAuthPlugin = async (_input, options) => {
   const opts = options && typeof options === 'object' ? options : {}
   const appVersion = opts.appVersion || '3.1.0'
   const accountFile = opts.accountFile || defaultAccountFile()
+  setPointsRate(opts.pointsRate)
   // 老的单文件账号自动迁进多账号目录（只迁一次）
   try { migrateLegacyAccount(accountFile) } catch {}
 

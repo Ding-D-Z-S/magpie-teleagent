@@ -172,6 +172,14 @@ limit: { context: 1048576, output: 131072 }
 
 ---
 
+## 积分估算显示（v0.4.4）
+
+TeleAgent 上游**不返回单次请求的积分消耗**（只有按天汇总的用量统计），插件按费率估算并随响应返回
+`usage.credits`，magpie 面板即可像其他模型一样显示每次用了多少积分。
+
+- 默认费率 0.05 积分/token（按今日实测消耗粗校准）
+- 可校准：`magpie plugin options teleagent '{"pointsRate":0.047}'`
+
 ## 目录结构
 
 ```
