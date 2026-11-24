@@ -275,8 +275,11 @@ export const TeleagentAuthPlugin = async (_input, options) => {
         if (auth?.type !== 'api' || !auth.key) return provider.models
         const context = Number(opts.contextWindow) > 0 ? Number(opts.contextWindow) : 1048576
         const output = Number(opts.maxOutputTokens) > 0 ? Number(opts.maxOutputTokens) : 131072
+        // 单位：¥ / 1M tokens（magpie 按这个算每次请求的 ¥ 与积分显示）
+        const inP = Number(opts.inputPrice) > 0 ? Number(opts.inputPrice) : 5
+        const outP = Number(opts.outputPrice) > 0 ? Number(opts.outputPrice) : 15
         const out = {}
-        for (const id of MODELS) out[id] = { limit: { context, output } }
+        for (const id of MODELS) out[id] = { limit: { context, output }, input_price: inP, output_price: outP, cache_price: 0 }
         return out
       },
     },
