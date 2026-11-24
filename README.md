@@ -91,6 +91,19 @@ magpie plugin login teleagent
 
 ---
 
+## 多账号
+
+每个账号单独一个文件，互不覆盖：
+
+```
+~/.config/magpie-teleagent/accounts/<accountId>.json
+~/.config/magpie-teleagent/accounts/<accountId>.checkin.json   # 签到节流状态
+```
+
+- 登录第二个账号只会新增一个文件，不会动第一个
+- magpie 按 `auth.key`（accountId）取对应账号
+- 老的单文件 `account.json` 会在插件加载时自动迁移进 `accounts/`，之后不再使用
+
 ## 实现要点
 
 ### 1. 网关地址

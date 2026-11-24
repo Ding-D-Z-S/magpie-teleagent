@@ -17,6 +17,7 @@ import { buildHeaders } from './lib/signer.mjs'
 import { MODELS, openaiToGateway, gatewayToOpenai, extractError } from './lib/api.mjs'
 import {
   BASE, CHAT_PATH, defaultAccountFile, loadAccount, saveAccount,
+  loadAccountById, saveAccountById, migrateLegacyAccount, checkinStateFileFor,
   fetchCredits, usageFromCredits,
 } from './lib/account.mjs'
 import { LOGIN_URL, PORTAL_URL, INSTRUCTIONS, extractToken } from './lib/web-login.mjs'
@@ -36,20 +37,21 @@ export const TeleagentAuthPlugin = async (_input, options) => {
   const opts = options && typeof options === 'object' ? options : {}
   const appVersion = opts.appVersion || '3.1.0'
   const accountFile = opts.accountFile || defaultAccountFile()
+  // 老的单文件账号自动迁进多账号目录（只迁一次）
+  try { migrateLegacyAccount(accountFile) } catch {}
 
-  function makeFetch() {
+  function makeFetch(acc) {
     return async function teleagentFetch(input, init = {}) {
       const bodyText = typeof init.body === 'string' ? init.body : ''
       let body = {}
       try { body = JSON.parse(bodyText || '{}') } catch { body = {} }
 
-      const acc = loadAccount(accountFile)
       if (!acc?.token) {
         return jsonResponse({ error: { message: '未登录 TeleAgent：请在 magpie 里添加账号', type: 'auth_error' } }, 401)
       }
       // 每次真正发请求时顺带跑一次自动签到（内部 6 小时节流，失败不影响对话）
       if (opts.autoCheckIn !== false) {
-        try { await checkIn(acc, { stateFile: accountFile + '.checkin.json' }) } catch {}
+        try { await checkIn(acc, { stateFile: checkinStateFileFor(acc.accountId || acc.accountName) }) } catch {}
       }
 
       const gwBody = openaiToGateway(body)
@@ -103,27 +105,39 @@ export const TeleagentAuthPlugin = async (_input, options) => {
     }
   }
 
-  /** 校验一个 token 是否可用，并把它写成账号 */
+  /** 校验一个 token 是否可用，并按 accountId 存成独立账号文件 */
   async function adoptToken(token, mode) {
     const channelKey = opts.channelKey || DEFAULT_CHANNEL_KEY
-    const prev = loadAccount(accountFile)
+    const probe = { token, channelKey, deviceId: randomUUID(), installId: randomUUID() }
+    const c = await fetchCredits(probe)
+    const id = c.account?.id || 'teleagent-local'
+    const prev = loadAccountById(id) || {}
     const acc = {
       token,
       channelKey,
       // 同账号重复登录保留原 device/install id，避免服务端把设备看成新的
-      deviceId: prev?.deviceId || randomUUID(),
-      installId: prev?.installId || randomUUID(),
+      deviceId: prev.deviceId || probe.deviceId,
+      installId: prev.installId || probe.installId,
+      accountId: id,
+      accountName: c.account?.name || null,
+      phone: c.account?.phone || null,
     }
-    const c = await fetchCredits(acc)
-    acc.accountId = c.account?.id || null
-    acc.accountName = c.account?.name || null
-    acc.phone = c.account?.phone || null
-    saveAccount(acc, accountFile)
+    saveAccountById(id, acc)
     return {
       type: 'success',
-      key: acc.accountId || 'teleagent-local',
+      key: id,
       metadata: { mode, account: acc.accountName || '', plan: c.plan || '', points: c.points ?? null },
     }
+  }
+
+  /** 按 magpie 给的 auth.key 找对应账号（多账号互不覆盖） */
+  function resolveAccount(auth) {
+    if (!auth?.key) return null
+    const byId = loadAccountById(auth.key)
+    if (byId?.token) return byId
+    const legacy = loadAccount(accountFile)
+    if (legacy?.token && (!legacy.accountId || legacy.accountId === auth.key)) return legacy
+    return null
   }
 
   return {
@@ -184,9 +198,17 @@ export const TeleagentAuthPlugin = async (_input, options) => {
             }
             try {
               const c = await fetchCredits(acc)
+              const id = c.account?.id || acc.accountId || 'teleagent-local'
+              // 迁进多账号目录，后续按 key 读取，互不覆盖
+              saveAccountById(id, {
+                ...acc,
+                accountId: id,
+                accountName: c.account?.name || acc.accountName || null,
+                phone: c.account?.phone || acc.phone || null,
+              })
               return {
                 type: 'success',
-                key: c.account?.id || acc.accountId || 'teleagent-local',
+                key: id,
                 metadata: { mode: 'local', account: c.account?.name || acc.accountName || '', points: c.points ?? null },
               }
             } catch (e) {
@@ -198,16 +220,17 @@ export const TeleagentAuthPlugin = async (_input, options) => {
 
       async loader(getAuth) {
         const auth = await getAuth()
-        if (!auth?.key) return {}
-        return { baseURL: BASE, apiKey: 'teleagent-local', fetch: makeFetch() }
+        const acc = resolveAccount(auth)
+        if (!acc?.token) return {}
+        return { baseURL: BASE, apiKey: 'teleagent-local', fetch: makeFetch(acc) }
       },
 
       async usage(getAuth, _provider, ctx) {
-        const acc = loadAccount(accountFile)
+        const acc = resolveAccount(await getAuth())
         if (!acc?.token) return { error: '未登录 TeleAgent 账号', signIn: 'expired' }
         let checkin = null
         if (opts.autoCheckIn !== false) {
-          try { checkin = await checkIn(acc, { stateFile: accountFile + '.checkin.json', signal: ctx?.signal }) } catch {}
+          try { checkin = await checkIn(acc, { stateFile: checkinStateFileFor(acc.accountId || acc.accountName), signal: ctx?.signal }) } catch {}
         }
         try {
           const c = await fetchCredits(acc, { signal: ctx?.signal })
