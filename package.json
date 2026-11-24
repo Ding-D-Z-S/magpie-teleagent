@@ -1,0 +1,43 @@
+{
+  "name": "magpie-teleagent",
+  "version": "0.3.1",
+  "description": "magpie / OpenCode provider plugin: use your TeleAgent (星辰超级智能体) account as a provider",
+  "type": "module",
+  "main": "./index.mjs",
+  "files": [
+    "index.mjs",
+    "lib",
+    "README.md",
+    "LICENSE",
+    "logo.svg",
+    "logo-mark.png"
+  ],
+  "keywords": [
+    "magpie",
+    "opencode",
+    "teleagent",
+    "teleai"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "magpie": {
+    "name": "TeleAgent",
+    "maxConcurrency": 1,
+    "summary": {
+      "en": "Your own TeleAgent account as a provider, with points shown on the account card.",
+      "zh": "用自己的 TeleAgent 账号作模型提供方，账号卡片显示积分。"
+    },
+    "icon": "https://agent.teleai.com.cn/meter/teleagent/user/portal/assets/logo-mark-BHRWrah4.png"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ding-D-Z-S/magpie-teleagent.git"
+  },
+  "homepage": "https://github.com/Ding-D-Z-S/magpie-teleagent#readme",
+  "bugs": {
+    "url": "https://github.com/Ding-D-Z-S/magpie-teleagent/issues"
+  },
+  "author": "Ding-D-Z-S"
+}

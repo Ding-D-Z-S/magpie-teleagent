@@ -1,0 +1,5 @@
+node_modules/
+*.checkin.json
+account.json
+*.log
+.DS_Store
